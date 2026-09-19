@@ -1,0 +1,6 @@
+{
+  "name": "Fraud and Scam Detector",
+  "description": "Prototype for analyzing suspicious URLs and documents with extracted evidence, risk verification, and actionable user guidance.",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}
