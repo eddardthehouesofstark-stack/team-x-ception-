@@ -363,24 +363,30 @@ CRITICAL INSTRUCTIONS:
 `;
   }
 
-  const contents: any[] = [];
+  const promptParts: any[] = [];
   if (payload.imageData) {
-    contents.push({
+    promptParts.push({
       inlineData: {
         mimeType: payload.imageData.mimeType,
         data: payload.imageData.base64,
       },
     });
   }
-  contents.push({ text: promptEvidenceSummary });
+  promptParts.push({ text: promptEvidenceSummary });
 
+  // Fast, reliable multimodal models in priority order:
+  // gemini-3.6-flash is fast, accurate, and has stable quotas.
+  // gemini-3.1-flash-lite provides instant high-availability fallback.
+  // gemini-3.8-flash provides deep reasoning.
+  const candidateModels = ["gemini-3.6-flash", "gemini-3.1-flash-lite", "gemini-3.8-flash"];
   let response: any;
   let lastError: any = null;
-  for (let attempt = 0; attempt < 3; attempt++) {
+
+  for (const modelName of candidateModels) {
     try {
       response = await ai.models.generateContent({
-        model: "gemini-3.8-flash",
-        contents: contents.length === 1 ? contents[0].text : { parts: contents },
+        model: modelName,
+        contents: { parts: promptParts },
         config: {
           systemInstruction: "You are an objective forensic fraud, cybercrime, and scam detection intelligence engine. Ground all findings in verified visual and textual evidence without hallucinating.",
           temperature: 0.1,
@@ -466,18 +472,55 @@ CRITICAL INSTRUCTIONS:
           },
         },
       });
-      break; // Success
+
+      if (response) {
+        break; // Successfully got response
+      }
     } catch (err: any) {
       lastError = err;
-      console.warn(`Gemini generation attempt ${attempt + 1} failed:`, err.message || err);
-      // Wait before retrying
-      if (attempt < 2) {
-        await new Promise((resolve) => setTimeout(resolve, 1200 * (attempt + 1)));
-      }
+      console.warn(`Gemini model ${modelName} call failed:`, err.message || err);
     }
   }
 
   if (!response && lastError) {
+    if (payload.sourceType === "image") {
+      return {
+        verdict: "SUSPICIOUS",
+        confidence: 75,
+        detected_category: "Unverified Image / Message Screenshot",
+        summary: "The image was received, but real-time cloud AI forensic validation was temporarily throttled. Standard caution applies: examine sender channels and payment demands carefully.",
+        risk_signals: [
+          "Unverified visual correspondence or screenshot received",
+          "Visual communication requires manual channel verification"
+        ],
+        evidence: [
+          {
+            signal: "Manual Inspection Required",
+            evidence: `Target file: ${payload.target}. Please verify whether sender uses personal messaging channels (WhatsApp/Telegram) or requests advance fees.`,
+            severity: "medium",
+            location: "Full Image"
+          }
+        ],
+        guidance: [
+          "Never pay money, security deposits, or 'release fees' based on screenshots or chat messages.",
+          "Legitimate government, police, banks, and couriers never issue warrants, seizure notices, or fees via WhatsApp/Telegram.",
+          "Check for visual tampering: mismatched fonts, uneven kerning, or pixelated logos pasted on plain receipts."
+        ],
+        forensics: {
+          impersonated_entity: undefined,
+          channel_analysis: "Visual upload received",
+          manipulation_detected: false,
+          tampering_details: "Inspect font alignment and sender handles manually."
+        },
+        extraction_details: {
+          sourceType: payload.sourceType,
+          target: payload.target,
+          fetchStatus: "not_applicable",
+          textLength: 0
+        }
+      };
+    }
+
     // If model had transient outage (e.g. 503 high demand), build deterministic ground-truth response
     const hasSuspiciousDomain = payload.domainSignals?.suspiciousTld || payload.domainSignals?.hasBrandImpersonationRisk || payload.domainSignals?.isRawIp;
     const fetchFailed = payload.fetchStatus === "failed";
@@ -581,12 +624,39 @@ CRITICAL INSTRUCTIONS:
     };
   }
 
-  const rawJson = response.text?.trim() || "{}";
+  // Parse response JSON cleanly
+  let text = response?.text?.trim() || "";
+  if (!text && response?.candidates?.[0]?.content?.parts) {
+    for (const part of response.candidates[0].content.parts) {
+      if (part.text && !part.thought) {
+        text = part.text.trim();
+        break;
+      }
+    }
+  }
+
+  if (text.startsWith("```json")) {
+    text = text.replace(/^```json\s*/i, "").replace(/\s*```$/, "");
+  } else if (text.startsWith("```")) {
+    text = text.replace(/^```\s*/, "").replace(/\s*```$/, "");
+  }
+
   let parsed: any;
   try {
-    parsed = JSON.parse(rawJson);
+    parsed = JSON.parse(text);
   } catch (e) {
-    throw new Error("Failed to parse AI response into structured format: " + rawJson.slice(0, 200));
+    // Try to extract object substring
+    const start = text.indexOf("{");
+    const end = text.lastIndexOf("}");
+    if (start !== -1 && end > start) {
+      try {
+        parsed = JSON.parse(text.slice(start, end + 1));
+      } catch (innerErr) {
+        throw new Error("Failed to parse AI response: " + text.slice(0, 200));
+      }
+    } else {
+      throw new Error("Failed to parse AI response into structured format: " + text.slice(0, 200));
+    }
   }
 
   // Normalize verdict

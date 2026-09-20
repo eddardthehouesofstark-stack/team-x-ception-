@@ -69,11 +69,19 @@ export default function App() {
   }) => {
     setIsLoading(true);
     setApiError(null);
-    setActiveProgressStage(2); // Extracting evidence directly
+    setActiveProgressStage(1); // Processing visual evidence
 
-    const timer = setTimeout(() => {
-      setActiveProgressStage(3); // Analyzing content
-    }, 1800);
+    const timer1 = setTimeout(() => {
+      setActiveProgressStage(2); // Extracting OCR & signals
+    }, 1000);
+
+    const timer2 = setTimeout(() => {
+      setActiveProgressStage(3); // Analyzing scam & forensics
+    }, 2200);
+
+    const timer3 = setTimeout(() => {
+      setActiveProgressStage(4); // Compiling report
+    }, 3800);
 
     try {
       const response = await fetch("/api/analyze-upload", {
@@ -82,7 +90,10 @@ export default function App() {
         body: JSON.stringify(uploadData),
       });
 
-      clearTimeout(timer);
+      clearTimeout(timer1);
+      clearTimeout(timer2);
+      clearTimeout(timer3);
+
       const data = await response.json();
 
       if (!response.ok && !data.verdict) {
@@ -96,6 +107,9 @@ export default function App() {
       console.error("Upload Analysis error:", err);
       setApiError(err.message || "An unexpected error occurred while analyzing the uploaded file.");
     } finally {
+      clearTimeout(timer1);
+      clearTimeout(timer2);
+      clearTimeout(timer3);
       setIsLoading(false);
       setActiveProgressStage(1);
     }

@@ -72,18 +72,34 @@ async function startServer() {
         return;
       }
 
-      const isImage = fileType?.startsWith("image/") || /\.(png|jpe?g|webp|gif|bmp)$/i.test(fileName || "");
+      const isImage = 
+        fileType?.startsWith("image/") || 
+        /\.(png|jpe?g|webp|gif|bmp|heic|heif|avif|tiff)$/i.test(fileName || "") ||
+        (typeof base64Data === "string" && base64Data.startsWith("data:image/"));
 
       let analysisResult;
       if (isImage && base64Data) {
-        const mimeType = fileType || "image/png";
-        // Clean base64 header if included
-        const cleanBase64 = base64Data.replace(/^data:[^;]+;base64,/, "");
+        let mimeType = fileType;
+        if (typeof base64Data === "string") {
+          const match = base64Data.match(/^data:(image\/[a-zA-Z0-9.+_-]+);base64,/);
+          if (match) {
+            mimeType = match[1];
+          }
+        }
+        if (!mimeType || !mimeType.startsWith("image/")) {
+          if (/\.jpe?g$/i.test(fileName || "")) mimeType = "image/jpeg";
+          else if (/\.webp$/i.test(fileName || "")) mimeType = "image/webp";
+          else if (/\.gif$/i.test(fileName || "")) mimeType = "image/gif";
+          else mimeType = "image/png";
+        }
+
+        // Clean base64 header if included and strip all whitespace/newlines
+        const cleanBase64 = base64Data.replace(/^data:[^;]+;base64,/, "").replace(/[\r\n\s]/g, "");
 
         analysisResult = await runScamAnalysisOnEvidence({
           sourceType: "image",
           target: fileName || "uploaded_image",
-          extractedText: textContent || "Image uploaded for visual and textual scam analysis.",
+          extractedText: textContent || "Visual image evidence provided for fraud, scam, and impersonation detection.",
           fetchStatus: "not_applicable",
           imageData: {
             mimeType,

@@ -53,6 +53,8 @@ export const ResultsPage: React.FC<ResultsPageProps> = ({
     }));
   };
 
+  const isImageResult = result.extraction_details?.sourceType === "image";
+
   return (
     <div className="w-full max-w-2xl mx-auto py-8 sm:py-12 space-y-8" id="results-page">
       {/* 1. Clear Verdict Header */}
@@ -67,7 +69,7 @@ export const ResultsPage: React.FC<ResultsPageProps> = ({
         <div className="flex items-start justify-between gap-4">
           <div className="space-y-1">
             <div className="text-xs font-mono tracking-wider uppercase text-slate-500">
-              ANALYSIS RESULT
+              {isImageResult ? "IMAGE FORENSIC RESULT" : "ANALYSIS RESULT"}
             </div>
             <div 
               className={`text-2xl sm:text-3xl font-semibold tracking-tight ${
@@ -77,6 +79,11 @@ export const ResultsPage: React.FC<ResultsPageProps> = ({
             >
               [{result.verdict}]
             </div>
+            {result.detected_category && (
+              <div className="text-xs font-medium text-slate-600 pt-0.5">
+                Category: <span className="font-semibold text-slate-900">{result.detected_category}</span>
+              </div>
+            )}
           </div>
 
           <div className="text-right">
@@ -134,7 +141,9 @@ export const ResultsPage: React.FC<ResultsPageProps> = ({
             EVIDENCE
           </h2>
           <p className="text-xs text-slate-500">
-            Actual supporting evidence extracted directly from content and domain signals.
+            {isImageResult 
+              ? "Verified visual evidence extracted from text, logos, layout, and messaging channels."
+              : "Actual supporting evidence extracted directly from content and domain signals."}
           </p>
         </div>
 
@@ -156,6 +165,7 @@ export const ResultsPage: React.FC<ResultsPageProps> = ({
                   <div className="flex items-center justify-between text-xs">
                     <span className="font-mono uppercase font-semibold text-slate-700 tracking-wide">
                       {item.signal}
+                      {item.location ? ` (${item.location})` : ""}
                     </span>
                     {item.severity && (
                       <span className="text-[11px] text-slate-500 uppercase font-mono">
@@ -198,7 +208,7 @@ export const ResultsPage: React.FC<ResultsPageProps> = ({
         )}
       </section>
 
-      {/* 4. Restrained Technical Details Drawer */}
+      {/* 4. Technical Details Drawer */}
       {result.extraction_details && (
         <div className="border border-slate-200 rounded overflow-hidden" id="technical-details-card">
           <button
@@ -206,7 +216,7 @@ export const ResultsPage: React.FC<ResultsPageProps> = ({
             onClick={() => setShowTechnicalDetails(!showTechnicalDetails)}
             className="w-full px-5 py-3.5 flex items-center justify-between text-left text-xs font-mono text-slate-600 hover:text-slate-900 bg-slate-50 transition-colors cursor-pointer"
           >
-            <span>Technical details (DNS, HTTP headers, extracted text)</span>
+            <span>{isImageResult ? "Forensic Metadata & Channel Analysis" : "Technical details (DNS, HTTP headers, extracted text)"}</span>
             {showTechnicalDetails ? (
               <ChevronUp className="w-4 h-4 text-slate-500" />
             ) : (
@@ -217,35 +227,67 @@ export const ResultsPage: React.FC<ResultsPageProps> = ({
           {showTechnicalDetails && (
             <div className="p-5 border-t border-slate-200 space-y-3 bg-white text-xs font-mono text-slate-700">
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                <div className="p-2.5 rounded bg-slate-50 border border-slate-200">
-                  <span className="text-slate-400 block mb-0.5 uppercase text-[10px]">Fetch Status</span>
-                  <span className="font-semibold text-slate-800">
-                    {result.extraction_details.fetchStatus?.toUpperCase()}
-                    {result.extraction_details.fetchError ? ` (${result.extraction_details.fetchError})` : ""}
-                  </span>
-                </div>
+                {isImageResult ? (
+                  <>
+                    <div className="p-2.5 rounded bg-slate-50 border border-slate-200">
+                      <span className="text-slate-400 block mb-0.5 uppercase text-[10px]">Evidence Source</span>
+                      <span className="font-semibold text-slate-800">Visual Screenshot / Image OCR</span>
+                    </div>
 
-                <div className="p-2.5 rounded bg-slate-50 border border-slate-200">
-                  <span className="text-slate-400 block mb-0.5 uppercase text-[10px]">Visible Text Length</span>
-                  <span className="font-semibold text-slate-800">
-                    {result.extraction_details.textLength || 0} characters parsed
-                  </span>
-                </div>
+                    <div className="p-2.5 rounded bg-slate-50 border border-slate-200">
+                      <span className="text-slate-400 block mb-0.5 uppercase text-[10px]">Impersonated Entity</span>
+                      <span className="font-semibold text-slate-800">
+                        {result.forensics?.impersonated_entity || "None isolated"}
+                      </span>
+                    </div>
 
-                <div className="p-2.5 rounded bg-slate-50 border border-slate-200">
-                  <span className="text-slate-400 block mb-0.5 uppercase text-[10px]">Page Title</span>
-                  <span className="font-semibold text-slate-800 truncate block">
-                    {result.extraction_details.pageTitle || "(None)"}
-                  </span>
-                </div>
+                    <div className="p-2.5 rounded bg-slate-50 border border-slate-200">
+                      <span className="text-slate-400 block mb-0.5 uppercase text-[10px]">Channel Analysis</span>
+                      <span className="font-semibold text-slate-800">
+                        {result.forensics?.channel_analysis || "Direct visual document inspection"}
+                      </span>
+                    </div>
 
-                <div className="p-2.5 rounded bg-slate-50 border border-slate-200">
-                  <span className="text-slate-400 block mb-0.5 uppercase text-[10px]">Protocol &amp; TLD</span>
-                  <span className="font-semibold text-slate-800">
-                    {result.extraction_details.isHttps ? "HTTPS" : "Insecure HTTP"} &bull;{" "}
-                    {result.extraction_details.suspiciousTld ? "High-Abuse TLD" : "Standard TLD"}
-                  </span>
-                </div>
+                    <div className="p-2.5 rounded bg-slate-50 border border-slate-200">
+                      <span className="text-slate-400 block mb-0.5 uppercase text-[10px]">Digital Alterations</span>
+                      <span className="font-semibold text-slate-800">
+                        {result.forensics?.tampering_details || "No overt alteration isolated"}
+                      </span>
+                    </div>
+                  </>
+                ) : (
+                  <>
+                    <div className="p-2.5 rounded bg-slate-50 border border-slate-200">
+                      <span className="text-slate-400 block mb-0.5 uppercase text-[10px]">Fetch Status</span>
+                      <span className="font-semibold text-slate-800">
+                        {result.extraction_details.fetchStatus?.toUpperCase()}
+                        {result.extraction_details.fetchError ? ` (${result.extraction_details.fetchError})` : ""}
+                      </span>
+                    </div>
+
+                    <div className="p-2.5 rounded bg-slate-50 border border-slate-200">
+                      <span className="text-slate-400 block mb-0.5 uppercase text-[10px]">Visible Text Length</span>
+                      <span className="font-semibold text-slate-800">
+                        {result.extraction_details.textLength || 0} characters parsed
+                      </span>
+                    </div>
+
+                    <div className="p-2.5 rounded bg-slate-50 border border-slate-200">
+                      <span className="text-slate-400 block mb-0.5 uppercase text-[10px]">Page Title</span>
+                      <span className="font-semibold text-slate-800 truncate block">
+                        {result.extraction_details.pageTitle || "(None)"}
+                      </span>
+                    </div>
+
+                    <div className="p-2.5 rounded bg-slate-50 border border-slate-200">
+                      <span className="text-slate-400 block mb-0.5 uppercase text-[10px]">Protocol &amp; TLD</span>
+                      <span className="font-semibold text-slate-800">
+                        {result.extraction_details.isHttps ? "HTTPS" : "Insecure HTTP"} &bull;{" "}
+                        {result.extraction_details.suspiciousTld ? "High-Abuse TLD" : "Standard TLD"}
+                      </span>
+                    </div>
+                  </>
+                )}
               </div>
             </div>
           )}
@@ -260,7 +302,7 @@ export const ResultsPage: React.FC<ResultsPageProps> = ({
           onClick={onAnalyzeAnother}
           className="w-full sm:w-auto h-10 px-4 rounded border border-slate-300 bg-white hover:bg-slate-50 text-slate-800 font-medium text-sm transition-colors cursor-pointer"
         >
-          Analyze Another URL
+          Check Another Link / Image
         </button>
 
         <button
