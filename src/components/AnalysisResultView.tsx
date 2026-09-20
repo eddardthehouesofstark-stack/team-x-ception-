@@ -51,8 +51,19 @@ export const AnalysisResultView: React.FC<AnalysisResultViewProps> = ({
               )}
             </div>
             <div>
-              <div className="text-xs font-semibold tracking-wider uppercase text-stone-500">
-                RESULT
+              <div className="flex items-center gap-2">
+                <span className="text-xs font-semibold tracking-wider uppercase text-stone-500">
+                  RESULT
+                </span>
+                {result.detected_category && (
+                  <span className={`text-[11px] font-semibold px-2.5 py-0.5 rounded-full border ${
+                    isSuspicious 
+                      ? "bg-rose-100/90 text-rose-800 border-rose-200" 
+                      : "bg-emerald-100/90 text-emerald-800 border-emerald-200"
+                  }`}>
+                    {result.detected_category}
+                  </span>
+                )}
               </div>
               <div 
                 className={`text-2xl sm:text-3xl font-bold tracking-tight ${
@@ -116,6 +127,40 @@ export const AnalysisResultView: React.FC<AnalysisResultViewProps> = ({
           </ul>
         </section>
 
+        {/* Visual & Channel Forensics Audit (For images or documents with forensic telemetry) */}
+        {result.forensics && (
+          <section id="section-forensics" className="rounded-xl border border-stone-200 bg-stone-50/50 p-5">
+            <h3 className="text-xs font-bold uppercase tracking-wider text-stone-700 flex items-center gap-2 mb-3">
+              <span className="w-2 h-2 rounded-full bg-indigo-500" />
+              Visual &amp; Channel Forensic Audit
+            </h3>
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 text-xs">
+              {result.forensics.impersonated_entity && (
+                <div className="bg-white p-3 rounded-lg border border-stone-200">
+                  <span className="text-stone-400 block mb-0.5 uppercase text-[10px] font-semibold">Impersonation Target</span>
+                  <span className="font-semibold text-rose-800">{result.forensics.impersonated_entity}</span>
+                </div>
+              )}
+              {result.forensics.channel_analysis && (
+                <div className="bg-white p-3 rounded-lg border border-stone-200">
+                  <span className="text-stone-400 block mb-0.5 uppercase text-[10px] font-semibold">Platform / Channel Integrity</span>
+                  <span className="font-medium text-stone-800">{result.forensics.channel_analysis}</span>
+                </div>
+              )}
+              {result.forensics.tampering_details && (
+                <div className="bg-white p-3 rounded-lg border border-stone-200 sm:col-span-2">
+                  <span className="text-stone-400 block mb-0.5 uppercase text-[10px] font-semibold">
+                    Graphic &amp; Typography Inspection {result.forensics.manipulation_detected ? "(Tampering Detected)" : "(Authentic Layout)"}
+                  </span>
+                  <span className={`font-medium ${result.forensics.manipulation_detected ? "text-rose-700" : "text-stone-700"}`}>
+                    {result.forensics.tampering_details}
+                  </span>
+                </div>
+              )}
+            </div>
+          </section>
+        )}
+
         <div className="border-t border-stone-200" />
 
         {/* EVIDENCE */}
@@ -137,10 +182,15 @@ export const AnalysisResultView: React.FC<AnalysisResultViewProps> = ({
                   className="rounded-lg border border-stone-200 bg-stone-50/60 p-4 transition-colors"
                   id={`evidence-item-${idx}`}
                 >
-                  <div className="flex items-center justify-between gap-2 mb-1.5">
+                  <div className="flex flex-wrap items-center justify-between gap-2 mb-1.5">
                     <div className="text-xs font-bold uppercase tracking-wider text-stone-700 flex items-center gap-1.5">
                       <span className="w-2 h-2 rounded-full bg-stone-400" />
                       Signal: {item.signal}
+                      {item.location && (
+                        <span className="font-mono text-[10px] text-stone-500 bg-stone-200/80 px-1.5 py-0.5 rounded font-normal">
+                          {item.location}
+                        </span>
+                      )}
                     </div>
                     {item.severity && (
                       <span className={`text-[10px] uppercase font-semibold px-2 py-0.5 rounded border ${

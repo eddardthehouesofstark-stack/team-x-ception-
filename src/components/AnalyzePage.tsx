@@ -223,11 +223,14 @@ export const AnalyzePage: React.FC<AnalyzePageProps> = ({
               ) : (
                 <div className="space-y-1">
                   <p className="text-sm font-medium text-slate-700">
-                    Click or drag file here
+                    Click or drag screenshot / document here
                   </p>
                   <p className="text-xs text-slate-500">
-                    PNG, JPG, WEBP screenshots, or text documents
+                    WhatsApp/Telegram chats, fake payment receipts, digital arrest warrants, or emails (PNG, JPG, WEBP)
                   </p>
+                  <div className="inline-flex items-center gap-1.5 mt-2 px-2.5 py-1 rounded bg-slate-100 text-[11px] text-slate-600 font-medium">
+                    <span>Forensic OCR + Graphic Tampering &amp; Channel Analysis Enabled</span>
+                  </div>
                 </div>
               )}
             </div>

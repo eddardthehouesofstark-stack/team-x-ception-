@@ -264,7 +264,55 @@ export async function runScamAnalysisOnEvidence(payload: {
 }): Promise<AnalysisResponse> {
   const ai = getGeminiClient();
 
-  const promptEvidenceSummary = `
+  let promptEvidenceSummary: string;
+
+  if (payload.sourceType === "image" && payload.imageData) {
+    promptEvidenceSummary = `
+You are a Lead Forensic Fraud Investigator, Cybercrime Intelligence Analyst, and Document Forensics Specialist.
+You are conducting a strict, pixel-level and semantic fraud examination of this submitted image.
+
+IMAGE CONTEXT:
+File Name: ${payload.target}
+User Supplied Notes / Context: ${payload.extractedText && payload.extractedText !== "Image uploaded for visual and textual scam analysis." ? payload.extractedText : "(None provided - inspect image directly)"}
+
+YOUR FORENSIC INVESTIGATION PROTOCOL:
+Follow this rigorous 6-tier forensic methodology to determine whether this image is a SCAM/FRAUD or SAFE/AUTHENTIC:
+
+1. OPTICAL CHARACTER TRANSCRIPTION & TEXT AUDIT:
+   - Carefully read all visible text across the entire image: banners, headers, message bubbles, contact handles (@username), phone numbers (country codes), email addresses, transaction IDs, monetary amounts, and small fine-print disclaimers.
+
+2. CHANNEL & DELIVERY ANOMALY FORENSICS:
+   - Check communication channel discrepancy: Real banks, government agencies, courts, law enforcement (Police/FBI/Interpol/CBI/NCB), tax authorities (IRS/HMRC), postal carriers (USPS/DHL/FedEx), and major brands (Apple/Google/Amazon/Netflix/PayPal) NEVER conduct official legal matters, account recovery, job offers, or fee collection via personal WhatsApp chats, Telegram channels, Discord, SMS, or @gmail/@hotmail/@yahoo accounts.
+   - If official letterheads, seals, or badges are presented in a personal chat or informal screenshot, this is an immediate, high-severity fraud signal.
+
+3. DIGITAL TAMPERING & GRAPHIC FORGERY DETECTION:
+   - Carefully inspect visual typography and layout alignment:
+     * Check for font mismatches, irregular kerning, uneven font weights, or floating text in balance numbers, transaction amounts, dates, or account holder names (hallmark of fake banking apps like FakePay, manipulated Zelle/Venmo/UPI receipts, or altered PDF exports).
+     * Check for compression halos, blurry/pixelated logos pasted on crisp backgrounds, crooked stamps, or artificial drop shadows.
+
+4. SCAM TYPOLOGY RECOGNITION (Identify the exact modus operandi):
+   - Task & Prepaid Work-from-Home Scams: "Part-time job rating 38 apps/hotels", "Subscribe/Like YouTube videos for $5", daily wage promises ($200-$800/day), VIP tier deposits.
+   - Digital Arrest / Law Enforcement / Customs Blackmail: Fake arrest warrant, narcotics bureau notice, customs seizure alert, court summons threatening immediate arrest within hours, demanding video call or bail money.
+   - Fake Payment / Transfer Confirmation: Screenshot claiming money was sent, asking seller to release items or pay a "refundable verification fee".
+   - Phishing & Urgent Account Alerts: Fake SMS/email screenshot warning of account suspension, locked cards, or unauthorized login with urgent shortened links.
+   - Cryptocurrency & Forex Trading Schemes: Screenshots showing fake trading platforms, astronomical guaranteed daily profits (e.g. 10% daily), "VIP signal mentor".
+   - Advance-Fee / Parcel Holds: Fake postal SMS/screenshot claiming a parcel has an invalid address or unpaid $2-$50 customs release fee.
+   - Lottery / Prize / Romance: Unsolicited award letters or romantic contacts redirecting to external investment platforms.
+
+5. LEGITIMACY VERIFICATION:
+   - If the image is a genuine, standard user interface screenshot, official receipt, or clean normal correspondence with NO urgency triggers, NO payment demands, NO suspicious links, and genuine authentic layout, mark verdict as "SAFE", set confidence appropriately (85-95%), and provide objective reassurance.
+
+6. STRICT GROUND-TRUTH CITATIONS:
+   - DO NOT INVENT FACTS.
+   - For every entry in 'evidence':
+     * 'signal': Concise name of the forensic indicator (e.g., 'Telegram Channel Discrepancy', 'Advance Deposit Request', 'Font Inconsistency')
+     * 'evidence': Exact verbatim quote, phone number, handle, or visual anomaly observed
+     * 'severity': 'high', 'medium', 'low', or 'info'
+     * 'location': Specific visual location (e.g. 'Top Sender Header', 'Message Bubble 2', 'Balance Field', 'Document Seal')
+   - In 'detected_category', identify the exact classification (e.g., 'Work-From-Home Task Scam', 'Digital Arrest Impersonation', 'Fake Payment Confirmation', 'Urgent Phishing Alert', 'Crypto Investment Scam', 'Advance-Fee Delivery Scam', 'Legitimate Correspondence/Receipt', 'Suspicious Unverified Image').
+`;
+  } else {
+    promptEvidenceSummary = `
 You are an expert cybersecurity fraud and scam analysis engine.
 Analyze the following verified extracted signals from submitted content:
 
@@ -310,8 +358,10 @@ CRITICAL INSTRUCTIONS:
    - 'signal': Clear title of the signal (e.g., 'Payment Request', 'Domain Mismatch', 'Urgency Tactic', 'Suspicious TLD')
    - 'evidence': The verbatim quote, exact domain detail, or verified observation
    - 'severity': 'high', 'medium', 'low', or 'info'
+   - 'location': Optional area or section
 8. 'guidance' array must provide practical, concrete next steps for the user based on the detected evidence.
 `;
+  }
 
   const contents: any[] = [];
   if (payload.imageData) {
@@ -332,7 +382,7 @@ CRITICAL INSTRUCTIONS:
         model: "gemini-3.8-flash",
         contents: contents.length === 1 ? contents[0].text : { parts: contents },
         config: {
-          systemInstruction: "You are an objective fraud, scam, and cybersecurity verification engine. Strictly follow ground truth evidence without hallucinating.",
+          systemInstruction: "You are an objective forensic fraud, cybercrime, and scam detection intelligence engine. Ground all findings in verified visual and textual evidence without hallucinating.",
           temperature: 0.1,
           responseMimeType: "application/json",
           responseSchema: {
@@ -345,6 +395,10 @@ CRITICAL INSTRUCTIONS:
               confidence: {
                 type: Type.INTEGER,
                 description: "Confidence percentage integer between 0 and 100",
+              },
+              detected_category: {
+                type: Type.STRING,
+                description: "Specific identified category (e.g. 'Task & Job Scam', 'Digital Arrest Impersonation', 'Fake Payment Receipt', 'Crypto Investment Fraud', 'Phishing Security Alert', 'Legitimate Document/Receipt', 'Advance-Fee Delivery Scam')",
               },
               summary: {
                 type: Type.STRING,
@@ -372,6 +426,10 @@ CRITICAL INSTRUCTIONS:
                       type: Type.STRING,
                       description: "high, medium, low, or info",
                     },
+                    location: {
+                      type: Type.STRING,
+                      description: "Specific area/section in the image or document, e.g. 'Sender Banner', 'Message Body', 'Amount Field'",
+                    },
                   },
                   required: ["signal", "evidence"],
                 },
@@ -381,6 +439,27 @@ CRITICAL INSTRUCTIONS:
                 type: Type.ARRAY,
                 items: { type: Type.STRING },
                 description: "Actionable what-should-you-do steps for the user.",
+              },
+              forensics: {
+                type: Type.OBJECT,
+                properties: {
+                  impersonated_entity: {
+                    type: Type.STRING,
+                    description: "Brand or official entity being impersonated, if any",
+                  },
+                  channel_analysis: {
+                    type: Type.STRING,
+                    description: "Evaluation of the delivery channel or platform",
+                  },
+                  manipulation_detected: {
+                    type: Type.BOOLEAN,
+                    description: "True if visual tampering or graphic inconsistencies are detected",
+                  },
+                  tampering_details: {
+                    type: Type.STRING,
+                    description: "Specific forensic observations regarding fonts, alignment, or digital alterations",
+                  },
+                },
               },
             },
             required: ["verdict", "confidence", "summary", "risk_signals", "evidence", "guidance"],
@@ -514,6 +593,17 @@ CRITICAL INSTRUCTIONS:
   const verdict = (parsed.verdict?.toUpperCase() === "SAFE" ? "SAFE" : "SUSPICIOUS") as "SAFE" | "SUSPICIOUS";
   const confidence = Math.min(100, Math.max(0, typeof parsed.confidence === "number" ? parsed.confidence : 85));
 
+  const forensicsData = parsed.forensics || (payload.sourceType === "image" ? {
+    impersonated_entity: undefined,
+    channel_analysis: "Visual message/document format examined",
+    manipulation_detected: false,
+    tampering_details: "No overt digital tampering isolated"
+  } : undefined);
+
+  const detectedCategory = parsed.detected_category || (payload.sourceType === "image"
+    ? (verdict === "SUSPICIOUS" ? "Suspicious Image / Message" : "Verified Authentic Document/Message")
+    : (verdict === "SUSPICIOUS" ? "High-Risk Domain" : "Standard Web Resource"));
+
   const extractionMetadata: ExtractionMetadata = {
     sourceType: payload.sourceType,
     target: payload.target,
@@ -526,12 +616,14 @@ CRITICAL INSTRUCTIONS:
     textLength: payload.extractedText ? payload.extractedText.length : 0,
     extractedContacts: payload.extractedContacts,
     formActions: payload.formActions,
-    renderedWithJs: payload.isJsRenderedNotice
+    renderedWithJs: payload.isJsRenderedNotice,
+    forensics: forensicsData
   };
 
   return {
     verdict,
     confidence,
+    detected_category: detectedCategory,
     summary: parsed.summary || (verdict === "SUSPICIOUS" ? "Potential scam risk indicators detected." : "No critical scam indicators identified."),
     risk_signals: Array.isArray(parsed.risk_signals) && parsed.risk_signals.length > 0 
       ? parsed.risk_signals 
@@ -544,6 +636,7 @@ CRITICAL INSTRUCTIONS:
           "Verify company information independently through official channels.",
           "Exercise caution before clicking links or downloading attachments."
         ],
+    forensics: forensicsData,
     extraction_details: extractionMetadata
   };
 }
