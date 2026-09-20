@@ -69,7 +69,7 @@ Requirements:
 4. "legalStatutesCited": List of 2-4 actual statutes or regulatory rules cited.
 `;
 
-    const candidateModels = ["gemini-3.6-flash", "gemini-3.1-flash-lite"];
+    const candidateModels = ["gemini-2.5-flash", "gemini-3.8-flash", "gemini-3.1-flash-lite"];
     for (const model of candidateModels) {
       try {
         const res = await ai.models.generateContent({
@@ -83,7 +83,6 @@ Requirements:
               properties: {
                 bankDisputeLetter: { type: Type.STRING },
                 cybercrimeComplaint: { type: Type.STRING },
-                takedownNotice: { type: Type.STRING },
                 legalStatutesCited: {
                   type: Type.ARRAY,
                   items: { type: Type.STRING },
@@ -92,7 +91,6 @@ Requirements:
               required: [
                 "bankDisputeLetter",
                 "cybercrimeComplaint",
-                "takedownNotice",
                 "legalStatutesCited",
               ],
             },
@@ -103,12 +101,12 @@ Requirements:
           aiDossier = JSON.parse(res.text);
           break;
         }
-      } catch (innerErr) {
-        console.warn(`Model ${model} failed for dossier:`, innerErr);
+      } catch (innerErr: any) {
+        console.warn(`Model ${model} was unavailable (${innerErr?.status || innerErr?.message || "transient error"}), trying next model or fallback...`);
       }
     }
-  } catch (err) {
-    console.warn("AI generation failed for dossier, using deterministic legal template:", err);
+  } catch (err: any) {
+    console.warn("AI generation error for dossier, smoothly activating deterministic legal engine:", err?.message || err);
   }
 
   // If AI generation succeeded, enrich with emergency checklist
