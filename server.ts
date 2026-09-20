@@ -2,6 +2,7 @@ import express from "express";
 import path from "path";
 import { createServer as createViteServer } from "vite";
 import { fetchAndExtractUrl, runScamAnalysisOnEvidence } from "./server/analyzer.js";
+import { generateIncidentDossier } from "./server/dossier.js";
 
 async function startServer() {
   const app = express();
@@ -127,6 +128,26 @@ async function startServer() {
         risk_signals: ["File could not be fully parsed: " + (err.message || "Unknown error")],
         evidence: [],
         guidance: ["Do not trust unverified documents or follow suspicious payment instructions."]
+      });
+    }
+  });
+
+  // 3. One-Click Incident Dossier & Cybercrime Complaint Generator
+  // Generates formal bank dispute letters, police cyber complaint schemas, and registrar takedown notices
+  app.post("/api/generate-dossier", async (req, res) => {
+    try {
+      const { analysis, options } = req.body;
+      if (!analysis) {
+        res.status(400).json({ error: "Missing analysis data for dossier generation." });
+        return;
+      }
+
+      const dossier = await generateIncidentDossier(analysis, options || {});
+      res.json(dossier);
+    } catch (err: any) {
+      console.error("Error in /api/generate-dossier:", err);
+      res.status(500).json({
+        error: err.message || "Failed to generate incident dossier.",
       });
     }
   });

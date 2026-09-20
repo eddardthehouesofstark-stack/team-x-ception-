@@ -42,3 +42,28 @@ export interface AnalysisResponse {
   forensics?: ImageForensics;
   extraction_details?: ExtractionMetadata;
 }
+
+export interface DossierOptions {
+  victimName?: string;
+  bankName?: string;
+  amountLost?: string;
+  transactionRef?: string;
+  incidentDate?: string;
+  jurisdiction?: "US" | "IN" | "UK" | "INTL";
+  suspectContact?: string;
+  paymentMethod?: string;
+}
+
+export interface IncidentDossier {
+  bankDisputeLetter: string;
+  cybercrimeComplaint: string;
+  takedownNotice: string;
+  abuseEmailTarget: string;
+  legalStatutesCited: string[];
+  emergencyChecklist: {
+    phase: string;
+    action: string;
+    urgency: "immediate" | "within_1_hour" | "within_24_hours";
+    details: string;
+  }[];
+}
